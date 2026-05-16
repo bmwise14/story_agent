@@ -26,20 +26,20 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg_pool import ConnectionPool
 from pydantic import BaseModel
 
-from story_agent.agents.models import (
+from src.agents.models import (
     StoryConfig,
     Outline,
     ChapterBeats,
     Chapter,
     Revelation,
 )
-from story_agent.agents.prompts import (
+from src.agents.prompts import (
     CHECK_PROMPT,
     SUMMARIZE_PROMPT,
 )
-from story_agent.agents.subagents.outline import run_outline_agent
-from story_agent.agents.subagents.chapter_beats import run_beats_agent
-from story_agent.agents.subagents.chapter_content import run_content_agent
+from src.agents.subagents.outline import run_outline_agent
+from src.agents.subagents.chapter_beats import run_beats_agent
+from src.agents.subagents.chapter_content import run_content_agent
 
 MAX_RETRIES = 3
 
@@ -120,7 +120,8 @@ class StoryAgent:
         self.graph = graph.compile(checkpointer=checkpointer)
 
         # Write Mermaid diagram on startup
-        mermaid_path = os.path.join(os.path.dirname(__file__), "graph.mmd")
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        mermaid_path = os.path.join(repo_root, "data", "graph.mmd")
         with open(mermaid_path, "w") as f:
             f.write(self.graph.get_graph().draw_mermaid())
         print(f"  [graph] Mermaid diagram written to {mermaid_path}")

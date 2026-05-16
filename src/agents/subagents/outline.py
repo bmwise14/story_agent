@@ -11,8 +11,8 @@ import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 
-from story_agent.agents.models import Outline, StoryConfig
-from story_agent.agents.prompts import (
+from src.agents.models import Outline, StoryConfig
+from src.agents.prompts import (
     OUTLINE_PROMPT,
     STYLE_GUIDE,
     fmt_characters,

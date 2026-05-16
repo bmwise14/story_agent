@@ -10,8 +10,8 @@ When this becomes functional, replace the return statement with:
     return llm.invoke([HumanMessage(content=prompt_text)])
 """
 
-from story_agent.agents.models import ChapterBeats, Outline
-from story_agent.agents.prompts import (
+from src.agents.models import ChapterBeats, Outline
+from src.agents.prompts import (
     BEATS_PROMPT,
     STYLE_GUIDE,
     fmt_outline,

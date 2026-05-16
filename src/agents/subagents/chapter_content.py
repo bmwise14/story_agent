@@ -10,8 +10,8 @@ using CONTENT_PROMPT. Note: content generation does NOT use with_structured_outp
 because the output is free-form prose, not a JSON schema.
 """
 
-from story_agent.agents.models import Chapter, ChapterBeats, Outline
-from story_agent.agents.prompts import (
+from src.agents.models import Chapter, ChapterBeats, Outline
+from src.agents.prompts import (
     CONTENT_PROMPT,
     STYLE_GUIDE,
     fmt_outline,
