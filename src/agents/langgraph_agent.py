@@ -13,7 +13,7 @@ Graph shape:
 import argparse
 import json
 import os
-from typing import Optional, Literal, TypedDict
+from typing import Annotated, Optional, Literal, TypedDict
 
 from dotenv import load_dotenv
 
@@ -45,6 +45,23 @@ MAX_RETRIES = 3
 
 
 # ---------------------------------------------------------------------------
+# State reducers
+# ---------------------------------------------------------------------------
+
+def _merge_dicts(existing: dict, update: dict) -> dict:
+    """Merge update into existing without overwriting prior chapter entries."""
+    return {**existing, **update}
+
+
+def _append_revs(existing: dict, update: dict) -> dict:
+    """Extend per-character revelation lists across chapters."""
+    merged = {k: list(v) for k, v in existing.items()}
+    for char, revs in update.items():
+        merged.setdefault(char, []).extend(revs)
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 
@@ -52,9 +69,9 @@ class StoryState(TypedDict):
     thread_id: str
     config: StoryConfig
     outline: Optional[Outline]
-    chapter_beats: dict          # int → ChapterBeats
-    chapters: dict               # int → Chapter
-    character_revelations: dict  # str → list[Revelation]
+    chapter_beats: Annotated[dict, _merge_dicts]          # int → ChapterBeats
+    chapters: Annotated[dict, _merge_dicts]               # int → Chapter
+    character_revelations: Annotated[dict, _append_revs]  # str → list[Revelation]
     current_chapter: int
     retry_count: int
     last_check_verdict: str
@@ -162,8 +179,7 @@ class StoryAgent:
             chapters=state.get("chapters", {}),
             character_revelations=state.get("character_revelations", {}),
         )
-        updated = {**state.get("chapter_beats", {}), ch: beats}
-        return {"chapter_beats": updated}
+        return {"chapter_beats": {ch: beats}}
 
     def generate_chapter_content(self, state: StoryState) -> dict:
         ch = state["current_chapter"]
@@ -179,8 +195,7 @@ class StoryAgent:
             character_revelations=state.get("character_revelations", {}),
             approx_words=state["config"].approx_words_per_chapter,
         )
-        updated = {**state.get("chapters", {}), ch: chapter}
-        return {"chapters": updated}
+        return {"chapters": {ch: chapter}}
 
     def check_content(self, state: StoryState) -> dict:
         """
@@ -230,18 +245,13 @@ class StoryAgent:
         result: SummarizeResult = llm.invoke([HumanMessage(content=prompt)])
         print(f"  [summarize] summary written | {len(result.new_revelations)} revelation(s) extracted")
 
-        # Write summary back onto the chapter
-        updated_chapters = dict(state.get("chapters", {}))
-        updated_chapters[ch] = updated_chapters[ch].model_copy(update={"summary": result.summary})
-
-        # Merge revelations keyed by character name
-        updated_revs = {k: list(v) for k, v in state.get("character_revelations", {}).items()}
-        for rev in result.new_revelations:
-            updated_revs.setdefault(rev.character_name, []).append(rev)
+        # Reducer merges these into the existing dicts/lists automatically
+        updated_chapter = state["chapters"][ch].model_copy(update={"summary": result.summary})
+        new_revs = {rev.character_name: [rev] for rev in result.new_revelations}
 
         return {
-            "chapters": updated_chapters,
-            "character_revelations": updated_revs,
+            "chapters": {ch: updated_chapter},
+            "character_revelations": new_revs,
         }
 
     def increment_chapter(self, state: StoryState) -> dict:
