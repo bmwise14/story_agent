@@ -281,7 +281,18 @@ class StoryAgent:
     # Run helper
     # -----------------------------------------------------------------------
 
-    def run(self, config: StoryConfig, thread_id: str) -> None:
+    def run(self, config: StoryConfig, thread_id: str, max_attempts: int = 3) -> None:
+        for attempt in range(max_attempts):
+            try:
+                self._run_once(config, thread_id)
+                return
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    raise
+                print(f"\n  [retry] attempt {attempt + 1}/{max_attempts} failed: {e!r}")
+                print(f"  [retry] resuming from last checkpoint...")
+
+    def _run_once(self, config: StoryConfig, thread_id: str) -> None:
         thread_cfg = {"configurable": {"thread_id": thread_id}, "recursion_limit": 50}
 
         existing = self.graph.get_state(thread_cfg)

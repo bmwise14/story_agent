@@ -460,7 +460,16 @@ def main():
         f"@{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
     )
 
-    asyncio.run(run_adk_agent(config=config, session_id=args.session_id, db_uri=db_uri))
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            asyncio.run(run_adk_agent(config=config, session_id=args.session_id, db_uri=db_uri))
+            break
+        except Exception as e:
+            if attempt == max_attempts - 1:
+                raise
+            print(f"\n  [retry] attempt {attempt + 1}/{max_attempts} failed: {e!r}")
+            print(f"  [retry] resuming from last session state...")
 
 
 if __name__ == "__main__":
