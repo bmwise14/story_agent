@@ -14,7 +14,7 @@ set -euo pipefail
 
 PROJECT=$(gcloud config get-value project)
 REGION="us-central1"
-IMAGE="gcr.io/${PROJECT}/story-agent:latest"
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/story-agent/story-agent:latest"
 SERVICE="story-worker"
 WORKER_SA="story-worker@${PROJECT}.iam.gserviceaccount.com"
 INVOKER_SA="story-pubsub-invoker@${PROJECT}.iam.gserviceaccount.com"
@@ -26,7 +26,7 @@ gcloud run deploy "$SERVICE" \
   --image="$IMAGE" \
   --region="$REGION" \
   --service-account="$WORKER_SA" \
-  --set-env-vars="SERVICE_ROLE=worker,GOOGLE_CLOUD_PROJECT=${PROJECT}" \
+  --set-env-vars="SERVICE_ROLE=worker,GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_API_KEY=${GOOGLE_API_KEY},OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID},OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET},OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI},DB_HOST=${DB_HOST},DB_PORT=${DB_PORT},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME}" \
   --ingress=internal \
   --no-allow-unauthenticated \
   --concurrency=1 \
