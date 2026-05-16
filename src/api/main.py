@@ -42,7 +42,12 @@ app = FastAPI(title="Story Agent API")
 
 @app.on_event("startup")
 def startup():
-    setup_jobs_table()
+    try:
+        setup_jobs_table()
+    except Exception as e:
+        # Log but don't crash — DB may not be reachable at startup in Cloud Run
+        # if env vars are missing or the AlloyDB proxy hasn't connected yet.
+        print(f"  [startup] setup_jobs_table failed (non-fatal): {e}")
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 

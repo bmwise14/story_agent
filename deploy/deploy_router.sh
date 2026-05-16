@@ -4,7 +4,7 @@
 # Settings rationale:
 #   --ingress=all          : public entry point — users hit this directly
 #   --allow-unauthenticated: browser-facing, no auth required at this layer
-#   --concurrency=80       : router does cheap I/O (Pub/Sub publish + Firestore read)
+#   --concurrency=80       : router does cheap I/O (Pub/Sub publish + Postgres read)
 #                            high concurrency is fine — no slow LLM calls here
 #   --min-instances=1      : avoid cold start on the user-facing path
 #   --max-instances=5      : cap cost; router doesn't need to scale much
