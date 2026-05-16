@@ -300,6 +300,24 @@ class StoryAgent:
         final = self.graph.get_state(thread_cfg)
         chapters_done = len(final.values.get("chapters", {}))
         print(f"\nDone. {chapters_done} chapter(s) complete for thread '{thread_id}'.")
+        self._dump_state(final.values, thread_id)
+
+    def _dump_state(self, state: dict, thread_id: str) -> None:
+        """Write full state to data/langgraph_state.json for comparison."""
+        def _serialize(obj):
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
+            if isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_serialize(i) for i in obj]
+            return obj
+
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        out_path = os.path.join(repo_root, "data", "langgraph_state.json")
+        with open(out_path, "w") as f:
+            json.dump(_serialize(state), f, indent=2, default=str)
+        print(f"  [state] written to data/langgraph_state.json")
 
 
 # ---------------------------------------------------------------------------

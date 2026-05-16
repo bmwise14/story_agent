@@ -1,0 +1,18 @@
+{
+  "premise": "A returning child finds their family home empty and starts piecing together what happened in their absence.",
+  "chapter_count": 1,
+  "approx_words_per_chapter": 800,
+  "themes": ["loss", "identity", "memory", "the unreliability of childhood"],
+  "characters": [
+    {
+      "name": "Claire Greenbriar",
+      "archetype": "the returning child",
+      "short_description": "Mid-twenties, returns home after years away to find no one waiting."
+    },
+    {
+      "name": "Sam (in absentia)",
+      "archetype": "the haunted sibling",
+      "short_description": "Claire's older sibling, present only through letters, voice messages, and rooms left mid-thought."
+    }
+  ]
+}
