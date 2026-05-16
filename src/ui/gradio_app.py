@@ -55,8 +55,15 @@ def _call_worker(job_id: str, variant_id: int, config_dict: dict, log_q: queue.Q
         )
         if resp.ok:
             log_q.put(f"[variant {variant_id}] complete")
+        elif resp.status_code == 400:
+            detail = resp.json().get("detail", {})
+            if isinstance(detail, dict) and detail.get("error") == "prompt_blocked":
+                violations = ", ".join(detail.get("violations", []))
+                log_q.put(f"[variant {variant_id}] BLOCKED by Model Armor — violations: {violations}")
+            else:
+                log_q.put(f"[variant {variant_id}] error 400: {resp.text[:200]}")
         else:
-            log_q.put(f"[variant {variant_id}] error {resp.status_code}: {resp.text[:300]}")
+            log_q.put(f"[variant {variant_id}] error {resp.status_code}: {resp.text[:200]}")
     except Exception as e:
         log_q.put(f"[variant {variant_id}] exception: {e}")
     finally:

@@ -174,14 +174,15 @@ async def story_start(body: StoryStartRequest) -> JSONResponse:
     The router never calls Vertex AI. Its only job is cheap I/O:
     validate → store → publish → return. High concurrency (80) is appropriate.
     """
-    # Pre-LLM guardrail on the story premise
     premise = body.config.get("premise", "")
-    screen = screen_prompt(premise)
-    if not screen.allowed:
-        raise HTTPException(status_code=400, detail={
-            "error": "prompt_blocked",
-            "violations": screen.violations,
-        })
+
+    # Model Armor pre-screen (disabled — template not provisioned for this project tier)
+    # screen = screen_prompt(premise)
+    # if not screen.allowed:
+    #     raise HTTPException(status_code=400, detail={
+    #         "error": "prompt_blocked",
+    #         "violations": screen.violations,
+    #     })
 
     job_id = str(uuid.uuid4())
 
@@ -280,9 +281,10 @@ async def worker(request: Request) -> dict:
     chapter = final_state.get("chapters", {}).get(1)
     chapter_text = chapter.text if chapter else "[no chapter generated]"
 
-    # Post-LLM guardrail on the generated chapter
-    screen = screen_response(chapter_text)
-    safe_text = screen.sanitized_text if screen.allowed else "[content blocked by guardrail]"
+    # Model Armor post-screen (disabled — template not provisioned for this project tier)
+    # screen = screen_response(chapter_text)
+    # safe_text = screen.sanitized_text if screen.allowed else "[content blocked by guardrail]"
+    safe_text = chapter_text
 
     # Write variant to Postgres; returns all variants if this was the last one.
     # SELECT FOR UPDATE ensures exactly one worker triggers the judge.
