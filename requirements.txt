@@ -1,0 +1,9 @@
+langgraph
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
+langchain-google-genai
+langchain-core
+google-cloud-aiplatform
+google-adk
+pydantic
+python-dotenv
