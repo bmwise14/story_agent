@@ -16,3 +16,8 @@ google-api-python-client
 google-cloud-secret-manager
 fastapi
 uvicorn
+
+# Phase 3 — Cloud Run + Pub/Sub + Firestore + Model Armor
+google-cloud-pubsub
+google-cloud-firestore
+google-cloud-modelarmor

@@ -1,27 +1,29 @@
 """
-FastAPI app — Phase 2 bootstrap.
+FastAPI app — Phase 2 + Phase 3.
 
-Routes added here (Phase 2):
-  GET /auth/login     — redirects browser to Google OAuth consent screen
-  GET /auth/callback  — receives auth code, exchanges for tokens, stores
-                        refresh token in Secret Manager
-
-Routes added in Phase 3:
-  POST /story/start
-  GET  /story/{job_id}
-  POST /internal/worker  (Pub/Sub push target)
+Routes:
+  GET  /auth/login          — OAuth consent redirect
+  GET  /auth/callback       — OAuth code exchange, stores refresh token
+  POST /story/start         — validates prompt, publishes 3 Pub/Sub messages, returns 202 + job_id
+  GET  /story/{job_id}      — polls Firestore for job status and winning chapter
+  POST /internal/worker     — Pub/Sub push target (internal ingress only)
 
 Run locally:
   uvicorn src.api.main:app --reload --port 8000
 """
 
+import base64
+import json
 import os
 import secrets
+import uuid
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
+from google.cloud import firestore
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -131,3 +133,146 @@ def callback(request: Request, code: str, state: str) -> HTMLResponse:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Story routes (Phase 3)
+# ---------------------------------------------------------------------------
+
+class StoryStartRequest(BaseModel):
+    prompt: str
+    user_id: str = DEMO_USER_ID
+
+
+@app.post("/story/start")
+async def story_start(body: StoryStartRequest) -> JSONResponse:
+    """
+    1. Screen prompt through Model Armor (pre-LLM guardrail)
+    2. Generate job_id, write pending record to Firestore
+    3. Publish 3 Pub/Sub messages (one per variant) — fan-out to 3 workers
+    4. Return 202 immediately — user polls GET /story/{job_id}
+
+    The router never calls Vertex AI. Its only job is cheap I/O:
+    validate → store → publish → return. High concurrency (80) is appropriate.
+    """
+    from src.guardrails.model_armor import screen_prompt
+    from src.infra.pubsub_client import publish_story_request
+
+    # Pre-LLM guardrail
+    screen = screen_prompt(body.prompt)
+    if not screen.allowed:
+        raise HTTPException(status_code=400, detail={
+            "error": "prompt_blocked",
+            "violations": screen.violations,
+        })
+
+    job_id = str(uuid.uuid4())
+
+    # Write pending job to Firestore
+    db = firestore.Client()
+    db.collection("jobs").document(job_id).set({
+        "status": "pending",
+        "prompt": screen.sanitized_text,
+        "user_id": body.user_id,
+        "variants": {},
+    })
+
+    # Fan-out: 3 Pub/Sub messages → 3 worker instances (concurrency=1 forces scale-out)
+    publish_story_request(job_id=job_id, prompt=screen.sanitized_text, n_variants=3)
+
+    return JSONResponse(status_code=202, content={"job_id": job_id, "status": "pending"})
+
+
+@app.get("/story/{job_id}")
+async def story_status(job_id: str) -> dict:
+    """
+    Poll for job completion. Returns status + winning chapter when done.
+
+    Browser polls this until status == "complete".
+    """
+    db = firestore.Client()
+    doc = db.collection("jobs").document(job_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="job not found")
+    return doc.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Worker endpoint (Phase 3) — internal ingress only, Pub/Sub push target
+# ---------------------------------------------------------------------------
+
+@app.post("/internal/worker")
+async def worker(request: Request) -> dict:
+    """
+    Pub/Sub push target. Cloud Run worker service only — no public URL.
+
+    Pub/Sub delivers a base64-encoded message body. This route:
+      1. Decodes the message
+      2. Runs the LangGraph story agent (one chapter, one variant)
+      3. Screens output through Model Armor (post-LLM)
+      4. Writes variant to Firestore
+      5. If all 3 variants are done, runs the LLM judge and writes the winner
+      6. Books a calendar event on the user's behalf (agent-as-user demo)
+
+    The OIDC token in the Authorization header is verified by Cloud Run
+    automatically — only the story-pubsub-invoker@ SA can reach this endpoint.
+    """
+    from src.guardrails.model_armor import screen_response
+    from src.evaluator.llm_judge import pick_winner
+    from src.oauth.calendar_client import book_game_night
+
+    # Decode Pub/Sub message
+    body = await request.json()
+    pubsub_message = body.get("message", {})
+    data = base64.b64decode(pubsub_message.get("data", "")).decode("utf-8")
+    payload = json.loads(data)
+
+    job_id = payload["job_id"]
+    variant_id = payload["variant_id"]
+    prompt = payload["prompt"]
+
+    print(f"  [worker] job={job_id} variant={variant_id}")
+
+    # Run the story agent (uses call_with_fallback internally in production)
+    # For now: generate a placeholder chapter to prove the plumbing works
+    from src.infra.fallback import call_with_fallback
+    chapter_text = call_with_fallback(
+        f"Write the opening chapter of a story with this premise: {prompt}"
+    )
+
+    # Post-LLM guardrail
+    screen = screen_response(chapter_text)
+    safe_text = screen.sanitized_text if screen.allowed else "[content blocked by guardrail]"
+
+    # Write variant to Firestore
+    db = firestore.Client()
+    job_ref = db.collection("jobs").document(job_id)
+    job_ref.update({f"variants.{variant_id}": safe_text})
+
+    # Check if all 3 variants are ready — run judge if so (Firestore transaction)
+    @firestore.transactional
+    def _maybe_run_judge(transaction, ref):
+        snapshot = ref.get(transaction=transaction)
+        data = snapshot.to_dict()
+        variants = data.get("variants", {})
+        if len(variants) < 3:
+            return
+        # All 3 variants present — run judge
+        winner_id, reasoning = pick_winner({int(k): v for k, v in variants.items()})
+        transaction.update(ref, {
+            "status": "complete",
+            "winner_variant_id": winner_id,
+            "winner_text": variants[str(winner_id)],
+            "judge_reasoning": reasoning,
+        })
+        # Agent-as-user: book calendar event with user's OAuth token
+        user_id = data.get("user_id", DEMO_USER_ID)
+        try:
+            book_game_night(user_id=user_id, story_title=prompt[:40], date_iso="2026-05-20")
+        except Exception as e:
+            print(f"  [worker] calendar booking failed (non-fatal): {e}")
+
+    transaction = db.transaction()
+    _maybe_run_judge(transaction, job_ref)
+
+    return {"status": "ok", "variant_id": variant_id}
