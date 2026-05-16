@@ -187,6 +187,41 @@ SequentialAgent (story_orchestrator)
 
 ---
 
+### 6. How Checkpointing Granularity Shapes Node Decomposition
+
+LangGraph's checkpointing incentive subtly influences how you split up work.
+
+In this build, beats and content are **two separate LangGraph nodes**
+(`generate_chapter_beats` → `generate_chapter_content`). That means:
+- `chapter_beats` is a first-class field in `StoryState`
+- A crash between beats and content resumes at `generate_chapter_content` — beats
+  are not re-run
+- The graph visualization shows the boundary explicitly
+
+In ADK, beats and content are **one combined agent** (`BeatsAndContentAgent`). Beats
+are a local variable inside `_run_async_impl`, never written to `state_delta`, and
+therefore invisible in session state. If the process dies mid-agent, the whole agent
+re-runs from the top — beats and content together.
+
+This is not a limitation of either framework. You could merge the LangGraph nodes into
+one and drop `chapter_beats` from the schema entirely. Or you could add beats to ADK's
+`state_delta`. Both are valid. But the design pressure points differently:
+
+**LangGraph** has an implicit incentive to split work finely because each node
+boundary is a free checkpoint. Finer nodes = more precise resume = less work repeated
+on failure. The schema grows to reflect those boundaries.
+
+**ADK** has no such incentive — it only checkpoints at invocation-turn level
+regardless of how many agents run inside a turn. Combining agents costs nothing in
+resume granularity, so the natural pull is toward fewer, larger agents.
+
+**Interview line:** "The checkpointing granularity in LangGraph subtly shapes how you
+decompose work. Every node boundary is a resume point, so there's a natural pull
+toward finer decomposition. ADK only checkpoints at the turn level, so combining
+agents costs you nothing — the design pressure runs in the opposite direction."
+
+---
+
 ## Actual State Comparison — One Chapter Run
 
 Both agents ran against `examples/gone_home_1ch.json` (1 chapter, same premise).
