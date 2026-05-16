@@ -18,7 +18,7 @@ Table: story_jobs
 
 Race condition for judge trigger: we use SELECT FOR UPDATE inside a
 transaction to atomically count variants and trigger the judge exactly once.
-This is the Postgres equivalent of a Firestore transaction.
+Uses SELECT FOR UPDATE — the standard Postgres pattern for atomic conditional updates.
 """
 
 import json

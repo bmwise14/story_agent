@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -148,10 +149,12 @@ class StoryAgent:
     # LLM factory — each node calls this with its own decoding parameters
     # -----------------------------------------------------------------------
 
-    def _llm(self, temperature: float, top_p: float) -> ChatGoogleGenerativeAI:
-        return ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-            google_api_key=os.environ["GOOGLE_API_KEY"],
+    def _llm(self, temperature: float, top_p: float) -> AzureChatOpenAI:
+        return AzureChatOpenAI(
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            api_version="2024-08-01-preview",
             temperature=temperature,
             top_p=top_p,
         )
@@ -165,7 +168,7 @@ class StoryAgent:
         if state.get("outline") is not None:
             print("  [outline] already in state — skipping (resumed)")
             return {}
-        print("  [outline] calling Gemini...")
+        print("  [outline] calling LLM...")
         outline = run_outline_agent(state["config"])
         print(f"  [outline] done — {outline.logline[:80]}...")
         return {"outline": outline}

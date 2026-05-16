@@ -1,0 +1,69 @@
+{
+  "config": {
+    "style": "psychological_personal_journey",
+    "themes": [
+      "loss",
+      "identity",
+      "memory",
+      "the unreliability of childhood"
+    ],
+    "premise": "A returning child finds their family home empty and starts piecing together what happened in their absence.",
+    "characters": [
+      {
+        "name": "Claire Greenbriar",
+        "archetype": "the returning child",
+        "short_description": "Mid-twenties, returns home after years away to find no one waiting."
+      },
+      {
+        "name": "Sam (in absentia)",
+        "archetype": "the haunted sibling",
+        "short_description": "Claire's older sibling, present only through letters, voice messages, and rooms left mid-thought."
+      }
+    ],
+    "chapter_count": 1,
+    "approx_words_per_chapter": 800
+  },
+  "outline": {
+    "logline": "Returning to her long-abandoned childhood home, Claire Greenbriar unearths the quiet, unsettling truth of her family's disappearance and her older sibling Sam's silent struggles, forcing her to reconstruct her own identity from the fragments of a past she thought she understood.",
+    "act_breakdown": [
+      "Claire steps into the profound silence of the Greenbriar house, expecting a familiar embrace but finding only dust motes dancing in sunbeams and the heavy scent of absence. Her initial bewilderment gives way to a slow, creeping dread as she navigates rooms frozen in time, each undisturbed object and half-finished project belonging to her absent family, particularly Sam, becoming a quiet, devastating clue. Through these intimate artifacts and hidden messages, Claire begins to peel back the layers of her own selective memory, confronting the unspoken anxieties and quiet departures that shaped her past and now redefine her present."
+    ],
+    "character_arcs": {
+      "Claire Greenbriar": "Claire begins her journey seeking a physical reunion and a comforting return to a past she's idealized from a distance. As she meticulously explores the empty house, her initial confusion transforms into a profound re-evaluation of her own childhood memories and her family's unspoken narratives. Each discovered letter, half-packed box, and abandoned personal item forces her to confront the psychological weight of her family's absence and, more acutely, the quiet struggles of her sibling, Sam. By the chapter's end, Claire's understanding of 'home' and 'family' is irrevocably shattered and rebuilt, not through external action, but through the painful, internal acceptance of a more complex, melancholic truth about loss and the unreliability of her own identity, forged in the shadows of a past she never truly knew.",
+      "Sam (in absentia)": "Sam exists solely through the intimate echoes left behind: a half-written letter, a forgotten drawing, a voice message saved but never fully heard. Initially a vague, perhaps idealized, sibling in Claire's memory, Sam's presence grows increasingly poignant and complex as Claire uncovers the subtle clues of their internal world. Through these fragments, Sam's arc is revealed as one of quiet struggle and a gradual, private departure, hinting at a deep emotional landscape Claire was oblivious to in her own youth. Sam's story, pieced together from the remnants, becomes a mirror reflecting Claire's own journey of discovery, forcing her to reframe her sibling not just as a memory, but as a person grappling with their own psychological battles, ultimately leading Claire to a more empathetic, albeit sorrowful, understanding of their shared history."
+    }
+  },
+  "chapters": {
+    "1": {
+      "text": "[STUB CHAPTER 1]\n\nThe house was the same and entirely wrong. Claire stood in the doorway long enough for the light to shift, watching dust move through the air above her mother's chair \u2014 still angled toward the window, still waiting for someone to sit in it who never would again.\n\nShe found the first note on page 7 of the journal she wasn't supposed to read. She read it twice. The second time her hands were steadier, which felt like the wrong response.\n\nEmotional arc: [STUB] Chapter 1 opens in quiet dread and closes in the specific grief of understanding.",
+      "summary": "Claire returned to her deceased mother's house, finding it unchanged yet profoundly different, and discovered a mysterious note in a forbidden journal. She grappled with quiet dread and the specific grief of understanding something new and unsettling. Her initial dread transformed into a more focused grief as she processed the implications of the note.",
+      "chapter_number": 1
+    }
+  },
+  "retry_count": 0,
+  "chapter_passed": true,
+  "story_complete": true,
+  "current_chapter": 2,
+  "character_revelations": {
+    "Claire Greenbriar": [
+      {
+        "kind": "fact",
+        "chapter_number": 1,
+        "character_name": "Claire Greenbriar",
+        "what_was_revealed": "Claire's mother is deceased, leaving her house untouched but imbued with a sense of loss."
+      },
+      {
+        "kind": "secret",
+        "chapter_number": 1,
+        "character_name": "Claire Greenbriar",
+        "what_was_revealed": "Claire found a note on page 7 of a journal she was explicitly forbidden to read."
+      },
+      {
+        "kind": "feeling",
+        "chapter_number": 1,
+        "character_name": "Claire Greenbriar",
+        "what_was_revealed": "Claire's hands became steadier after reading the note twice, a reaction she found disturbingly inappropriate."
+      }
+    ]
+  }
+}

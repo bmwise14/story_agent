@@ -7,7 +7,7 @@ Bias mitigations:
   3. Use a different model than the generator (Flash judges Pro output)
   4. Single structured call with explicit JSON schema
 
-Interview line: "I use Gemini Flash as the judge, not the same model that
+Interview line: "I use GPT-4o-mini as the judge, not the same model that
 generated the variants. Using the same model would create self-preference bias —
 a model tends to rate outputs that match its own style more highly. Different
 model, different temperature (0.0 for determinism), randomized order to kill
@@ -19,13 +19,12 @@ import os
 import random
 
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
 load_dotenv()
-
-JUDGE_MODEL = "gemini-2.5-flash"
 
 RUBRIC = """
 You are evaluating opening chapters for a gaming story campaign. Score the variants and pick the best one.
@@ -71,9 +70,11 @@ def pick_winner(variants: dict[int, str]) -> tuple[int, str]:
         for i, (_, text) in enumerate(items)
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model=JUDGE_MODEL,
-        google_api_key=os.environ["GOOGLE_API_KEY"],
+    llm = AzureChatOpenAI(
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-08-01-preview",
         temperature=0.0,  # deterministic verdict
     )
 

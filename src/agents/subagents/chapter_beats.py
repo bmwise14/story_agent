@@ -1,14 +1,16 @@
 """
-Chapter beats sub-agent — STUB.
+Chapter beats sub-agent.
 
-Receives real assembled context (outline + prior summaries + revelations)
-but returns hardcoded shape-correct ChapterBeats instead of making an LLM call.
-The plumbing is real; the output is canned.
-
-When this becomes functional, replace the return statement with:
-    llm = build_llm().with_structured_output(ChapterBeats)
-    return llm.invoke([HumanMessage(content=prompt_text)])
+Calls GPT-4o with structured output to generate 3-5 story beats and an
+emotional arc for the requested chapter. Uses the same build_llm() as the
+outline sub-agent so model/key configuration is centralised.
 """
+
+import os
+
+# from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
+from langchain_core.messages import HumanMessage
 
 from src.agents.models import ChapterBeats, Outline
 from src.agents.prompts import (
@@ -20,18 +22,24 @@ from src.agents.prompts import (
 )
 
 
+def _build_llm() -> AzureChatOpenAI:
+    return AzureChatOpenAI(
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-08-01-preview",
+        temperature=0.7,
+        top_p=0.9,
+    )
+
+
 def run_beats_agent(
     chapter_number: int,
     outline: Outline,
     chapters: dict,
     character_revelations: dict,
 ) -> ChapterBeats:
-    """
-    Assemble the full context prompt (so the plumbing is real),
-    then return a stub ChapterBeats for the requested chapter.
-    """
-    # Build the prompt exactly as the real agent would — context assembly is real.
-    _prompt_text = BEATS_PROMPT.format(
+    prompt_text = BEATS_PROMPT.format(
         style_guide=STYLE_GUIDE,
         chapter_number=chapter_number,
         outline=fmt_outline(outline),
@@ -39,15 +47,6 @@ def run_beats_agent(
         character_revelations=fmt_revelations(character_revelations),
     )
 
-    # STUB: return shape-correct placeholder instead of calling the LLM.
-    return ChapterBeats(
-        chapter_number=chapter_number,
-        beats=[
-            f"[STUB] Chapter {chapter_number} — the protagonist arrives at a threshold they cannot cross without cost.",
-            f"[STUB] An object or space triggers a memory that reframes everything before it.",
-            f"[STUB] A letter, recording, or absence confirms what the protagonist feared but could not name.",
-        ],
-        emotional_arc=(
-            f"[STUB] Chapter {chapter_number} opens in quiet dread and closes in the specific grief of understanding."
-        ),
-    )
+    llm = _build_llm().with_structured_output(ChapterBeats, method="json_mode")
+    result = llm.invoke([HumanMessage(content=prompt_text)])
+    return result

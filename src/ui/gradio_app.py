@@ -74,7 +74,7 @@ def generate_story(
     char_name: str,
     char_archetype: str,
     char_desc: str,
-) -> gr.types.Generator:
+):
     """
     Gradio generator — yields (log, chapter_text) tuples.
     The UI updates both the log box and the chapter output as they arrive.
@@ -162,7 +162,7 @@ def generate_story(
 # ---------------------------------------------------------------------------
 
 def build_ui() -> gr.Blocks:
-    with gr.Blocks(title="Story Agent", theme=gr.themes.Soft()) as demo:
+    with gr.Blocks(title="Story Agent") as demo:
         gr.Markdown("# Story Agent\nGenerate a story chapter with 3 parallel variants judged by an LLM.")
 
         with gr.Row():
@@ -204,7 +204,6 @@ def build_ui() -> gr.Blocks:
                     lines=14,
                     max_lines=14,
                     interactive=False,
-                    show_copy_button=False,
                 )
 
         gr.Markdown("### Winning Chapter")
@@ -212,7 +211,6 @@ def build_ui() -> gr.Blocks:
             label="",
             lines=20,
             interactive=False,
-            show_copy_button=True,
         )
 
         submit_btn.click(
@@ -226,4 +224,4 @@ def build_ui() -> gr.Blocks:
 
 if __name__ == "__main__":
     ui = build_ui()
-    ui.launch(server_port=7860, share=False)
+    ui.launch(server_port=7860, share=False, theme=gr.themes.Soft())

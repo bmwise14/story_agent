@@ -15,6 +15,7 @@ Run locally:
   uvicorn src.api.main:app --reload --port 8000
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -265,7 +266,11 @@ async def worker(request: Request) -> dict:
     )
     thread_id = f"{job_id}-variant-{variant_id}"
     agent = StoryAgent(db_uri=db_uri)
-    agent.run(config=config, thread_id=thread_id)
+
+    # Run the synchronous agent in a thread pool so the event loop stays free
+    # to accept the other 2 variant requests in parallel. Without this, all 3
+    # workers would execute serially on the same event loop thread.
+    await asyncio.to_thread(agent.run, config=config, thread_id=thread_id)
 
     # Extract the generated chapter text from the final checkpoint state
     thread_cfg = {"configurable": {"thread_id": thread_id}}

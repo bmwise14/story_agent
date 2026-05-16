@@ -1,14 +1,16 @@
 """
-Chapter content sub-agent — STUB.
+Chapter content sub-agent.
 
-Receives real assembled context (beats + prior summaries + revelations)
-but returns hardcoded shape-correct Chapter text instead of making an LLM call.
-The plumbing is real; the output is canned.
-
-When this becomes functional, replace the return statement with an LLM call
-using CONTENT_PROMPT. Note: content generation does NOT use with_structured_output
-because the output is free-form prose, not a JSON schema.
+Calls GPT-4o to generate free-form prose for the requested chapter.
+Does not use with_structured_output — the output is raw narrative text,
+not a JSON schema.
 """
+
+import os
+
+# from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
+from langchain_core.messages import HumanMessage
 
 from src.agents.models import Chapter, ChapterBeats, Outline
 from src.agents.prompts import (
@@ -20,6 +22,17 @@ from src.agents.prompts import (
 )
 
 
+def _build_llm() -> AzureChatOpenAI:
+    return AzureChatOpenAI(
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-08-01-preview",
+        temperature=0.85,
+        top_p=0.95,
+    )
+
+
 def run_content_agent(
     chapter_number: int,
     beats: ChapterBeats,
@@ -28,14 +41,9 @@ def run_content_agent(
     character_revelations: dict,
     approx_words: int = 800,
 ) -> Chapter:
-    """
-    Assemble the full context prompt (so the plumbing is real),
-    then return a stub Chapter for the requested chapter.
-    """
     beats_text = "\n".join(f"- {b}" for b in beats.beats)
 
-    # Build the prompt exactly as the real agent would — context assembly is real.
-    _prompt_text = CONTENT_PROMPT.format(
+    prompt_text = CONTENT_PROMPT.format(
         style_guide=STYLE_GUIDE,
         chapter_number=chapter_number,
         approx_words=approx_words,
@@ -45,20 +53,6 @@ def run_content_agent(
         character_revelations=fmt_revelations(character_revelations),
     )
 
-    # STUB: return shape-correct placeholder instead of calling the LLM.
-    stub_text = (
-        f"[STUB CHAPTER {chapter_number}]\n\n"
-        f"The house was the same and entirely wrong. Claire stood in the doorway "
-        f"long enough for the light to shift, watching dust move through the air "
-        f"above her mother's chair — still angled toward the window, still waiting "
-        f"for someone to sit in it who never would again.\n\n"
-        f"She found the first note on page {chapter_number * 7} of the journal "
-        f"she wasn't supposed to read. She read it twice. The second time her "
-        f"hands were steadier, which felt like the wrong response.\n\n"
-        f"Emotional arc: {beats.emotional_arc}"
-    )
-
-    return Chapter(
-        chapter_number=chapter_number,
-        text=stub_text,
-    )
+    llm = _build_llm()
+    response = llm.invoke([HumanMessage(content=prompt_text)])
+    return Chapter(chapter_number=chapter_number, text=response.content)

@@ -1,8 +1,10 @@
 langgraph
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
-langchain-google-genai
+langchain-openai
+langchain-google-genai  # still required by google-adk; not used in LangGraph pipeline
 langchain-core
+openai
 google-cloud-aiplatform
 google-adk
 pydantic
@@ -18,7 +20,7 @@ fastapi
 uvicorn
 gradio
 
-# Phase 3 — Cloud Run + Pub/Sub + Firestore + Model Armor
+# Phase 3 — Cloud Run + Pub/Sub + Postgres + Model Armor
 google-cloud-pubsub
 google-cloud-firestore
 google-cloud-modelarmor
