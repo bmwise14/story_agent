@@ -268,6 +268,36 @@ is in the schema so it always appears.
 
 ---
 
+### 7. Observability
+
+| | LangGraph | ADK |
+|---|---|---|
+| Platform | LangSmith (LangChain's hosted tracing UI) | Google Cloud Trace + ADK events table in Postgres |
+| Setup cost | Zero — `LANGCHAIN_TRACING_V2=true` in `.env` and every run is traced | Manual Cloud Trace wiring or custom logging per agent |
+| What you see | Full graph execution, token counts per node, latency per step, state at each checkpoint, replay individual runs | Events log in the `events` table; queryable but no UI |
+| Integration | Native — LangGraph speaks the LangChain tracing protocol | No LangSmith support — different ecosystem entirely |
+
+LangSmith is a genuinely strong pairing with LangGraph and requires zero extra code
+in this build. Every run shows up automatically — every node, every LLM call, token
+counts, latency, and the full state at each checkpoint.
+
+ADK's observability story is not as mature yet. The events table gives you a raw log
+of what fired, but there is no equivalent of LangSmith's UI. For production ADK
+deployments you'd wire up Cloud Trace and Cloud Logging manually.
+
+**You could call `session_service.update_session()` manually after each ADK agent to
+approximate node-level checkpointing** — but you'd be fighting the framework. You'd
+pay one extra Postgres round-trip per agent, own the transactional consistency
+guarantee yourself, and risk the events log and session state diverging. If you need
+node-level resume and rich observability, that's a signal to use LangGraph instead.
+
+**Interview line (for a Google audience):** "ADK integrates naturally with Google
+Cloud Trace and Cloud Logging. LangGraph has deeper observability tooling through
+LangSmith — zero-config tracing, a full graph replay UI, and per-node token counts.
+LangSmith is more mature right now; the ADK ecosystem is still catching up."
+
+---
+
 ## Summary Table
 
 | Dimension | LangGraph | ADK |
@@ -278,6 +308,7 @@ is in the schema so it always appears.
 | Loop control | Conditional edge functions — fully visible in code | `LoopAgent` + `escalate=True` event |
 | Resume granularity | Last completed **node** | Last completed **chapter turn** |
 | Graph visibility | `draw_mermaid()` renders the full graph | No built-in visualization |
+| Observability | LangSmith — zero config, full UI | Cloud Trace + raw events table — manual wiring |
 | Orchestration style | Nodes + edges (graph topology) | Nested agent objects (tree topology) |
 | Async | Optional | Required |
 
