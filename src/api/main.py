@@ -250,6 +250,11 @@ async def worker(request: Request) -> dict:
 
     print(f"  [worker] job={job_id} variant={variant_id}")
 
+    # Ensure the job row exists. In production the router already created it;
+    # ON CONFLICT DO NOTHING makes this a safe no-op in that case.
+    # When testing the worker directly (no router call), this creates the row.
+    create_job(job_id=job_id, prompt=config_dict.get("premise", ""), user_id=user_id)
+
     # Build StoryConfig and run the full LangGraph agent.
     # thread_id is unique per job+variant so each of the 3 variants gets
     # its own independent checkpoint in Postgres.

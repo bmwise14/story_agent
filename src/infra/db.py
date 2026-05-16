@@ -56,9 +56,16 @@ def setup_jobs_table() -> None:
 
 
 def create_job(job_id: str, prompt: str, user_id: str) -> None:
+    """
+    Upsert a pending job row. ON CONFLICT DO NOTHING means it's safe to call
+    from both the router (production) and the worker (local smoke tests) —
+    whichever runs first wins, subsequent calls are no-ops.
+    """
     with psycopg.connect(_db_uri()) as conn:
         conn.execute(
-            "INSERT INTO story_jobs (job_id, prompt, user_id) VALUES (%s, %s, %s)",
+            """INSERT INTO story_jobs (job_id, prompt, user_id)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (job_id) DO NOTHING""",
             (job_id, prompt, user_id),
         )
         conn.commit()
@@ -89,7 +96,7 @@ def write_variant_and_maybe_judge(
     Write a completed variant and return all variants if this is the last one.
 
     Uses SELECT FOR UPDATE to ensure exactly one worker triggers the judge —
-    the Postgres equivalent of a Firestore transaction.
+    the standard Postgres pattern for atomic conditional updates.
 
     Returns all variants dict if this was the last one, None otherwise.
     """
