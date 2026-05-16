@@ -55,12 +55,14 @@ story_agent/
 ├── docs/
 │   └── architecture.md           # Local vs production architecture diagrams
 ├── data/
-│   ├── graph.mmd                 # LangGraph graph (auto-generated on each run)
-│   ├── graph.png                 # Rendered graph image (auto-generated on each run)
+│   ├── graph.mmd                 # LangGraph graph (auto-generated on each agent instantiation)
+│   ├── graph.png                 # Rendered graph image (regenerated via scripts/render_graph.py)
 │   ├── langgraph_state.json      # State dump from last LangGraph run
 │   └── adk_state.json            # State dump from last ADK run
 ├── examples/
 │   └── gone_home_style.json      # Example StoryConfig input
+├── scripts/
+│   └── render_graph.py           # Regenerate data/graph.mmd + data/graph.png
 ├── Dockerfile
 └── requirements.txt
 ```
@@ -89,7 +91,13 @@ Real Pub/Sub push subscription delivers one message per worker container. Worker
 
 ### LangGraph Graph
 
-The graph is rendered to `data/graph.mmd` and `data/graph.png` on every run:
+The agent writes `data/graph.mmd` on every instantiation. To regenerate the PNG, run:
+
+```bash
+python -m scripts.render_graph
+```
+
+Solid lines are sequential edges. Dotted lines are conditional routes (the routing function picks one based on state).
 
 ![Story Agent Graph](data/graph.png)
 
