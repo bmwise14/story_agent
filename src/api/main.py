@@ -5,8 +5,11 @@ Routes:
   GET  /auth/login          — OAuth consent redirect
   GET  /auth/callback       — OAuth code exchange, stores refresh token
   POST /story/start         — validates prompt, publishes 3 Pub/Sub messages, returns 202 + job_id
-  GET  /story/{job_id}      — polls Firestore for job status and winning chapter
+  GET  /story/{job_id}      — polls Postgres for job status and winning chapter
   POST /internal/worker     — Pub/Sub push target (internal ingress only)
+
+Persistence: same game_stories Postgres DB used by LangGraph + ADK.
+In Cloud Run, DB_HOST points to AlloyDB — no code changes required.
 
 Run locally:
   uvicorn src.api.main:app --reload --port 8000
@@ -22,12 +25,18 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
-from google.cloud import firestore
 from pydantic import BaseModel
+
+from src.infra.db import setup_jobs_table, create_job, get_job, write_variant_and_maybe_judge, finalize_job
 
 load_dotenv()
 
 app = FastAPI(title="Story Agent API")
+
+
+@app.on_event("startup")
+def startup():
+    setup_jobs_table()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
@@ -168,14 +177,8 @@ async def story_start(body: StoryStartRequest) -> JSONResponse:
 
     job_id = str(uuid.uuid4())
 
-    # Write pending job to Firestore
-    db = firestore.Client()
-    db.collection("jobs").document(job_id).set({
-        "status": "pending",
-        "prompt": screen.sanitized_text,
-        "user_id": body.user_id,
-        "variants": {},
-    })
+    # Write pending job to Postgres (same game_stories DB as LangGraph + ADK)
+    create_job(job_id=job_id, prompt=screen.sanitized_text, user_id=body.user_id)
 
     # Fan-out: 3 Pub/Sub messages → 3 worker instances (concurrency=1 forces scale-out)
     publish_story_request(job_id=job_id, prompt=screen.sanitized_text, n_variants=3)
@@ -189,12 +192,12 @@ async def story_status(job_id: str) -> dict:
     Poll for job completion. Returns status + winning chapter when done.
 
     Browser polls this until status == "complete".
+    Uses same Postgres DB as LangGraph — consistent persistence layer.
     """
-    db = firestore.Client()
-    doc = db.collection("jobs").document(job_id).get()
-    if not doc.exists:
+    job = get_job(job_id)
+    if job is None:
         raise HTTPException(status_code=404, detail="job not found")
-    return doc.to_dict()
+    return job
 
 
 # ---------------------------------------------------------------------------
@@ -244,35 +247,28 @@ async def worker(request: Request) -> dict:
     screen = screen_response(chapter_text)
     safe_text = screen.sanitized_text if screen.allowed else "[content blocked by guardrail]"
 
-    # Write variant to Firestore
-    db = firestore.Client()
-    job_ref = db.collection("jobs").document(job_id)
-    job_ref.update({f"variants.{variant_id}": safe_text})
+    # Write variant to Postgres; returns all variants if this was the last one.
+    # SELECT FOR UPDATE inside write_variant_and_maybe_judge ensures exactly one
+    # worker triggers the judge — same guarantee as a Firestore transaction.
+    all_variants = write_variant_and_maybe_judge(
+        job_id=job_id, variant_id=variant_id, chapter_text=safe_text
+    )
 
-    # Check if all 3 variants are ready — run judge if so (Firestore transaction)
-    @firestore.transactional
-    def _maybe_run_judge(transaction, ref):
-        snapshot = ref.get(transaction=transaction)
-        data = snapshot.to_dict()
-        variants = data.get("variants", {})
-        if len(variants) < 3:
-            return
-        # All 3 variants present — run judge
-        winner_id, reasoning = pick_winner({int(k): v for k, v in variants.items()})
-        transaction.update(ref, {
-            "status": "complete",
-            "winner_variant_id": winner_id,
-            "winner_text": variants[str(winner_id)],
-            "judge_reasoning": reasoning,
-        })
-        # Agent-as-user: book calendar event with user's OAuth token
-        user_id = data.get("user_id", DEMO_USER_ID)
+    if all_variants is not None:
+        # This worker was last — run judge and finalize
+        winner_id, reasoning = pick_winner({int(k): v for k, v in all_variants.items()})
+        finalize_job(
+            job_id=job_id,
+            winner_variant_id=winner_id,
+            winner_text=all_variants[str(winner_id)],
+            judge_reasoning=reasoning,
+        )
+        # Agent-as-user: book calendar event on behalf of the user (Phase 2 + 3 bridge)
+        job = get_job(job_id)
+        user_id = job.get("user_id", DEMO_USER_ID) if job else DEMO_USER_ID
         try:
             book_game_night(user_id=user_id, story_title=prompt[:40], date_iso="2026-05-20")
         except Exception as e:
             print(f"  [worker] calendar booking failed (non-fatal): {e}")
-
-    transaction = db.transaction()
-    _maybe_run_judge(transaction, job_ref)
 
     return {"status": "ok", "variant_id": variant_id}

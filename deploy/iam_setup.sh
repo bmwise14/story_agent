@@ -41,8 +41,8 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
   --member="serviceAccount:$ROUTER_SA" \
   --role="roles/datastore.user"
 
-# --- Worker: Vertex + Firestore + Secret Manager + Model Armor ---
-for ROLE in roles/aiplatform.user roles/datastore.user roles/secretmanager.secretAccessor roles/modelarmor.user; do
+# --- Worker: Vertex + AlloyDB (Cloud SQL) + Secret Manager + Model Armor ---
+for ROLE in roles/aiplatform.user roles/cloudsql.client roles/secretmanager.secretAccessor roles/modelarmor.user; do
   gcloud projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:$WORKER_SA" \
     --role="$ROLE"
