@@ -130,10 +130,29 @@ class StoryAgent:
         graph.add_edge("make_outline", "generate_chapter_beats")
         graph.add_edge("generate_chapter_beats", "generate_chapter_content")
         graph.add_edge("generate_chapter_content", "check_content")
-        graph.add_conditional_edges("check_content", self.route_check)
+        # path_map tells LangGraph exactly which nodes the router can return,
+        # so draw_mermaid() can render the conditional edges. Without this,
+        # auto-generated diagrams silently drop these edges and leave the
+        # downstream nodes as floating orphans.
+        graph.add_conditional_edges(
+            "check_content",
+            self.route_check,
+            {
+                "summarize_chapter": "summarize_chapter",
+                "increment_retry": "increment_retry",
+                END: END,
+            },
+        )
         graph.add_edge("increment_retry", "generate_chapter_content")
         graph.add_edge("summarize_chapter", "increment_chapter")
-        graph.add_conditional_edges("increment_chapter", self.route_chapter)
+        graph.add_conditional_edges(
+            "increment_chapter",
+            self.route_chapter,
+            {
+                "generate_chapter_beats": "generate_chapter_beats",
+                END: END,
+            },
+        )
 
         self.graph = graph.compile(checkpointer=checkpointer)
 
