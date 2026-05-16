@@ -143,11 +143,15 @@ class OutlineAgent(BaseAgent):
         print("  [ADK outline] calling Gemini...")
         config = _get_config(state)
         outline = run_outline_agent(config)
-        state["outline"] = outline.model_dump()
         print(f"  [ADK outline] done — {outline.logline[:80]}...")
 
-        if False:  # satisfies AsyncGenerator typing
-            yield
+        # Must use state_delta to persist to DatabaseSessionService —
+        # direct dict mutation is in-memory only.
+        yield Event(
+            invocation_id=ctx.invocation_id,
+            author=self.name,
+            actions=EventActions(state_delta={"outline": outline.model_dump()}),
+        )
 
 
 class CheckAndSummarizeAgent(BaseAgent):
@@ -177,15 +181,19 @@ class CheckAndSummarizeAgent(BaseAgent):
 
         if result.verdict == "fail":
             new_retry = retry_count + 1
-            state["retry_count"] = new_retry
-            state["chapter_passed"] = False
-            if new_retry >= MAX_RETRIES:
-                print(f"  [ADK check] max retries hit — skipping chapter {ch}")
-                state["chapter_passed"] = True  # force-advance to avoid infinite loop
+            force_pass = new_retry >= MAX_RETRIES
+            if force_pass:
+                print(f"  [ADK check] max retries hit — force-advancing chapter {ch}")
             else:
                 print(f"  [ADK check] retry {new_retry}/{MAX_RETRIES}")
-            if False:
-                yield
+            yield Event(
+                invocation_id=ctx.invocation_id,
+                author=self.name,
+                actions=EventActions(state_delta={
+                    "retry_count": new_retry,
+                    "chapter_passed": force_pass,
+                }),
+            )
             return
 
         # --- Summarize (temp 0.2 — near-deterministic) ---
@@ -200,27 +208,30 @@ class CheckAndSummarizeAgent(BaseAgent):
         s_result: SummarizeResult = summarize_llm.invoke([HumanMessage(content=s_prompt)])
         print(f"  [ADK summarize] {len(s_result.new_revelations)} revelation(s) extracted")
 
-        # Write summary and advance chapter
+        # Build updated state — use state_delta so DatabaseSessionService persists it.
+        # Direct dict mutation is in-memory only; state_delta is what gets committed.
         chapters[str(ch)]["summary"] = s_result.summary
-        state["chapters"] = chapters
-
         revs = state.get("character_revelations", {})
         for rev in s_result.new_revelations:
             revs.setdefault(rev.character_name, []).append(rev.model_dump())
-        state["character_revelations"] = revs
 
         next_ch = ch + 1
-        state["current_chapter"] = next_ch
-        state["retry_count"] = 0
-        state["chapter_passed"] = True
-
         total = config.chapter_count
-        state["story_complete"] = next_ch > total
-        print(f"  [ADK] chapter {ch} done — {'story complete' if state['story_complete'] else f'moving to chapter {next_ch}'}")
+        story_complete = next_ch > total
+        print(f"  [ADK] chapter {ch} done — {'story complete' if story_complete else f'moving to chapter {next_ch}'}")
 
-
-        if False:
-            yield
+        yield Event(
+            invocation_id=ctx.invocation_id,
+            author=self.name,
+            actions=EventActions(state_delta={
+                "chapters": chapters,
+                "character_revelations": revs,
+                "current_chapter": next_ch,
+                "retry_count": 0,
+                "chapter_passed": True,
+                "story_complete": story_complete,
+            }),
+        )
 
 
 class BeatsAndContentAgent(BaseAgent):
@@ -267,11 +278,15 @@ class BeatsAndContentAgent(BaseAgent):
         )
 
         chapters_raw[str(ch)] = chapter.model_dump()
-        state["chapters"] = chapters_raw
-        state["chapter_passed"] = False  # reset; CheckAndSummarizeAgent sets it on pass
 
-        if False:
-            yield
+        yield Event(
+            invocation_id=ctx.invocation_id,
+            author=self.name,
+            actions=EventActions(state_delta={
+                "chapters": chapters_raw,
+                "chapter_passed": False,
+            }),
+        )
 
 
 # ---------------------------------------------------------------------------
