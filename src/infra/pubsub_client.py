@@ -22,12 +22,18 @@ load_dotenv()
 TOPIC_ID = "story-requests"
 
 
-def publish_story_request(job_id: str, prompt: str, n_variants: int = 3) -> list[str]:
+def publish_story_request(
+    job_id: str,
+    config_dict: dict,
+    user_id: str,
+    n_variants: int = 3,
+) -> list[str]:
     """
     Publish n_variants messages to the story-requests Pub/Sub topic.
 
-    Each message carries { job_id, variant_id, prompt }.
-    Returns list of published message IDs.
+    Each message carries { job_id, variant_id, config, user_id }.
+    The full StoryConfig is included so the worker can run the LangGraph
+    agent without needing to look anything up.
 
     The push subscription delivers each message to /internal/worker on the
     worker Cloud Run service, authenticated via OIDC token from the
@@ -42,7 +48,8 @@ def publish_story_request(job_id: str, prompt: str, n_variants: int = 3) -> list
         payload = json.dumps({
             "job_id": job_id,
             "variant_id": variant_id,
-            "prompt": prompt,
+            "config": config_dict,
+            "user_id": user_id,
         }).encode("utf-8")
 
         future = publisher.publish(topic_path, payload)
