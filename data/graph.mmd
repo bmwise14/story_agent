@@ -4,20 +4,27 @@ config:
     curve: linear
 ---
 graph TD;
-	__start__(<p>__start__</p>)
-	make_outline(make_outline)
-	generate_chapter_beats(generate_chapter_beats)
-	generate_chapter_content(generate_chapter_content)
-	check_content(check_content)
-	increment_retry(increment_retry)
-	summarize_chapter(summarize_chapter)
-	increment_chapter(increment_chapter)
-	__end__(<p>__end__</p>)
-	__start__ --> make_outline;
-	generate_chapter_beats --> generate_chapter_content;
-	generate_chapter_content --> check_content;
-	make_outline --> generate_chapter_beats;
-	check_content --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
+    __start__([__start__])
+    make_outline[make_outline]
+    generate_chapter_beats[generate_chapter_beats]
+    generate_chapter_content[generate_chapter_content]
+    check_content{{check_content}}
+    increment_retry[increment_retry]
+    summarize_chapter[summarize_chapter]
+    increment_chapter{{increment_chapter}}
+    __end__([__end__])
+
+    __start__ --> make_outline
+    make_outline --> generate_chapter_beats
+    generate_chapter_beats --> generate_chapter_content
+    generate_chapter_content --> check_content
+
+    check_content -->|"pass"| summarize_chapter
+    check_content -->|"fail"| increment_retry
+    check_content -->|"max_retries"| __end__
+
+    increment_retry --> generate_chapter_content
+    summarize_chapter --> increment_chapter
+
+    increment_chapter -->|"more chapters"| generate_chapter_beats
+    increment_chapter -->|"all done"| __end__
