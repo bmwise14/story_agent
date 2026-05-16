@@ -7,3 +7,12 @@ google-cloud-aiplatform
 google-adk
 pydantic
 python-dotenv
+
+# Phase 2 — OAuth + Calendar
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+google-cloud-secret-manager
+fastapi
+uvicorn
