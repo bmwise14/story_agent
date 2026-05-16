@@ -334,13 +334,19 @@ def build_adk_agent() -> SequentialAgent:
         sub_agents=[
             BeatsAndContentAgent(name="beats_and_content"),
             CheckAndSummarizeAgent(name="check_and_summarize"),
-            StoryCompleteChecker(name="story_complete_checker"),
         ],
     )
 
+    # StoryCompleteChecker is the FIRST sub-agent of the LoopAgent (not inside
+    # the sequential pipeline) so it can short-circuit at the top of each
+    # iteration before any work is done — matching LangGraph's conditional edge
+    # from increment_chapter that routes back to beats or to END.
     chapter_loop = LoopAgent(
         name="chapter_loop",
-        sub_agents=[chapter_pipeline],
+        sub_agents=[
+            StoryCompleteChecker(name="story_complete_checker"),
+            chapter_pipeline,
+        ],
         max_iterations=60,  # chapter_count × MAX_RETRIES upper bound
     )
 
