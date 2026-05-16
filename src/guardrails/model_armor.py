@@ -21,6 +21,7 @@ import os
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
+from google.cloud import modelarmor_v1
 
 load_dotenv()
 
@@ -34,8 +35,7 @@ class ScreenResult:
     violations: list[str]
 
 
-def _get_client():
-    from google.cloud import modelarmor_v1
+def _get_client() -> modelarmor_v1.ModelArmorClient:
     return modelarmor_v1.ModelArmorClient()
 
 
@@ -53,7 +53,6 @@ def screen_prompt(text: str) -> ScreenResult:
     If allowed=False, return a 400 to the user — do not call Vertex.
     """
     try:
-        from google.cloud import modelarmor_v1
         client = _get_client()
         response = client.sanitize_user_prompt(
             request=modelarmor_v1.SanitizeUserPromptRequest(
@@ -86,7 +85,6 @@ def screen_response(text: str) -> ScreenResult:
     If allowed=False, return a safe fallback message instead of the raw output.
     """
     try:
-        from google.cloud import modelarmor_v1
         client = _get_client()
         response = client.sanitize_model_response(
             request=modelarmor_v1.SanitizeModelResponseRequest(

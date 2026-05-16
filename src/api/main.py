@@ -27,7 +27,12 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from pydantic import BaseModel
 
+from src.evaluator.llm_judge import pick_winner
+from src.guardrails.model_armor import screen_prompt, screen_response
 from src.infra.db import setup_jobs_table, create_job, get_job, write_variant_and_maybe_judge, finalize_job
+from src.infra.fallback import call_with_fallback
+from src.infra.pubsub_client import publish_story_request
+from src.oauth.calendar_client import store_refresh_token, book_game_night
 
 load_dotenv()
 
@@ -112,8 +117,6 @@ def callback(request: Request, code: str, state: str) -> HTMLResponse:
     Secret Manager, keyed to the user_id. The agent retrieves it at
     runtime via get_access_token().
     """
-    from src.oauth.calendar_client import store_refresh_token
-
     # Reuse the same flow instance from /auth/login to carry the code_verifier
     flow = _flow_store.pop(state, None) or _build_flow()
     flow.fetch_token(
@@ -164,9 +167,6 @@ async def story_start(body: StoryStartRequest) -> JSONResponse:
     The router never calls Vertex AI. Its only job is cheap I/O:
     validate → store → publish → return. High concurrency (80) is appropriate.
     """
-    from src.guardrails.model_armor import screen_prompt
-    from src.infra.pubsub_client import publish_story_request
-
     # Pre-LLM guardrail
     screen = screen_prompt(body.prompt)
     if not screen.allowed:
@@ -220,10 +220,6 @@ async def worker(request: Request) -> dict:
     The OIDC token in the Authorization header is verified by Cloud Run
     automatically — only the story-pubsub-invoker@ SA can reach this endpoint.
     """
-    from src.guardrails.model_armor import screen_response
-    from src.evaluator.llm_judge import pick_winner
-    from src.oauth.calendar_client import book_game_night
-
     # Decode Pub/Sub message
     body = await request.json()
     pubsub_message = body.get("message", {})
@@ -238,7 +234,6 @@ async def worker(request: Request) -> dict:
 
     # Run the story agent (uses call_with_fallback internally in production)
     # For now: generate a placeholder chapter to prove the plumbing works
-    from src.infra.fallback import call_with_fallback
     chapter_text = call_with_fallback(
         f"Write the opening chapter of a story with this premise: {prompt}"
     )
