@@ -81,6 +81,7 @@ service-account*.json
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+terraform/terraform.tfvars
 
 # Docker (local overrides only; keep Dockerfile in repo)
 docker-compose.override.yml

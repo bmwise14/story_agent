@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in values.
+# terraform.tfvars is gitignored — never commit real credentials.
+
+project                      = "intense-optics-474721-n7"
+region                       = "us-central1"
+image                        = "us-central1-docker.pkg.dev/intense-optics-474721-n7/story-agent/story-agent:latest"
+
+azure_openai_endpoint        = "https://YOUR_RESOURCE.openai.azure.com"
+azure_openai_deployment_name = "gpt-4o"
+azure_openai_api_key         = "YOUR_KEY"
+
+oauth_client_id              = "YOUR_CLIENT_ID"
+oauth_client_secret          = "YOUR_CLIENT_SECRET"
+oauth_redirect_uri           = "https://YOUR_ROUTER_URL/auth/callback"
+
+db_host                      = "YOUR_DB_HOST"
+db_port                      = "5432"
+db_user                      = "story_user"
+db_password                  = "YOUR_PASSWORD"
+db_name                      = "game_stories"
